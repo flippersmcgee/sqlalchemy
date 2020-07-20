@@ -1695,37 +1695,34 @@ class MSSQLCompiler(compiler.SQLCompiler):
 
         """
 
-        if self.dialect._supports_offset_fetch and (
-            (not select._simple_int_limit and select._limit_clause is not None)
-            or (
-                select._offset_clause is not None
-                and not select._simple_int_offset
-                or select._offset
-            )
+        if (
+            not self.dialect._supports_offset_fetch
+            or (select._simple_int_limit or select._limit_clause is None)
+            and (select._offset_clause is None or select._simple_int_offset)
+            and not select._offset
         ):
-            # OFFSET are FETCH are options of the ORDER BY clause
-            if not select._order_by_clause.clauses:
-                raise exc.CompileError(
-                    "MSSQL requires an order_by when "
-                    "using an OFFSET or a non-simple "
-                    "LIMIT clause"
-                )
-
-            text = ""
-
-            if select._offset_clause is not None:
-                offset_str = self.process(select._offset_clause, **kw)
-            else:
-                offset_str = "0"
-            text += "\n OFFSET %s ROWS" % offset_str
-
-            if select._limit_clause is not None:
-                text += "\n FETCH NEXT %s ROWS ONLY " % self.process(
-                    select._limit_clause, **kw
-                )
-            return text
-        else:
             return ""
+        # OFFSET are FETCH are options of the ORDER BY clause
+        if not select._order_by_clause.clauses:
+            raise exc.CompileError(
+                "MSSQL requires an order_by when "
+                "using an OFFSET or a non-simple "
+                "LIMIT clause"
+            )
+
+        text = ""
+
+        if select._offset_clause is not None:
+            offset_str = self.process(select._offset_clause, **kw)
+        else:
+            offset_str = "0"
+        text += "\n OFFSET %s ROWS" % offset_str
+
+        if select._limit_clause is not None:
+            text += "\n FETCH NEXT %s ROWS ONLY " % self.process(
+                select._limit_clause, **kw
+            )
+        return text
 
     def visit_try_cast(self, element, **kw):
         return "TRY_CAST (%s AS %s)" % (
@@ -2119,11 +2116,7 @@ class MSDDLCompiler(compiler.DDLCompiler):
         # handle clustering option
         clustered = index.dialect_options["mssql"]["clustered"]
         if clustered is not None:
-            if clustered:
-                text += "CLUSTERED "
-            else:
-                text += "NONCLUSTERED "
-
+            text += "CLUSTERED " if clustered else "NONCLUSTERED "
         text += "INDEX %s ON %s (%s)" % (
             self._prepared_index_name(index, include_schema=include_schema),
             preparer.format_table(index.table),
@@ -2176,11 +2169,7 @@ class MSDDLCompiler(compiler.DDLCompiler):
 
         clustered = constraint.dialect_options["mssql"]["clustered"]
         if clustered is not None:
-            if clustered:
-                text += "CLUSTERED "
-            else:
-                text += "NONCLUSTERED "
-
+            text += "CLUSTERED " if clustered else "NONCLUSTERED "
         text += "(%s)" % ", ".join(
             self.preparer.quote(c.name) for c in constraint
         )
@@ -2199,11 +2188,7 @@ class MSDDLCompiler(compiler.DDLCompiler):
 
         clustered = constraint.dialect_options["mssql"]["clustered"]
         if clustered is not None:
-            if clustered:
-                text += "CLUSTERED "
-            else:
-                text += "NONCLUSTERED "
-
+            text += "CLUSTERED " if clustered else "NONCLUSTERED "
         text += "(%s)" % ", ".join(
             self.preparer.quote(c.name) for c in constraint
         )
@@ -2664,8 +2649,7 @@ class MSDialect(default.DefaultDialect):
             [ischema.schemata.c.schema_name],
             order_by=[ischema.schemata.c.schema_name],
         )
-        schema_names = [r[0] for r in connection.execute(s)]
-        return schema_names
+        return [r[0] for r in connection.execute(s)]
 
     @reflection.cache
     @_db_plus_owner_listing
@@ -2681,8 +2665,7 @@ class MSDialect(default.DefaultDialect):
             )
             .order_by(tables.c.table_name)
         )
-        table_names = [r[0] for r in connection.execute(s)]
-        return table_names
+        return [r[0] for r in connection.execute(s)]
 
     @reflection.cache
     @_db_plus_owner_listing
@@ -2698,8 +2681,7 @@ class MSDialect(default.DefaultDialect):
             )
             .order_by(tables.c.table_name)
         )
-        view_names = [r[0] for r in connection.execute(s)]
-        return view_names
+        return [r[0] for r in connection.execute(s)]
 
     @reflection.cache
     @_db_plus_owner
@@ -2777,8 +2759,7 @@ class MSDialect(default.DefaultDialect):
         )
 
         if rp:
-            view_def = rp.scalar()
-            return view_def
+            return rp.scalar()
 
     @reflection.cache
     @_db_plus_owner

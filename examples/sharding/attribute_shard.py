@@ -177,7 +177,7 @@ def query_chooser(query):
             elif operator == operators.in_op:
                 ids.extend(shard_lookup[v] for v in value)
 
-    if len(ids) == 0:
+    if not ids:
         return ["north_america", "asia", "europe", "south_america"]
     else:
         return ids

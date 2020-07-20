@@ -914,11 +914,7 @@ class CursorFetchStrategy(ResultFetchStrategy):
 
     def fetchmany(self, result, dbapi_cursor, size=None):
         try:
-            if size is None:
-                l = dbapi_cursor.fetchmany()
-            else:
-                l = dbapi_cursor.fetchmany(size)
-
+            l = dbapi_cursor.fetchmany() if size is None else dbapi_cursor.fetchmany(size)
             if not l:
                 result._soft_close()
             return l
@@ -1031,12 +1027,12 @@ class BufferedRowCursorFetchStrategy(CursorFetchStrategy):
     def fetchone(self, result, dbapi_cursor, hard_close=False):
         if not self._rowbuffer:
             self._buffer_rows(result, dbapi_cursor)
-            if not self._rowbuffer:
-                try:
-                    result._soft_close(hard=hard_close)
-                except BaseException as e:
-                    self.handle_exception(result, e)
-                return None
+        if not self._rowbuffer:
+            try:
+                result._soft_close(hard=hard_close)
+            except BaseException as e:
+                self.handle_exception(result, e)
+            return None
         return self._rowbuffer.popleft()
 
     def fetchmany(self, result, dbapi_cursor, size=None):

@@ -151,12 +151,15 @@ insert = public_factory(
 class OnConflictClause(ClauseElement):
     def __init__(self, constraint=None, index_elements=None, index_where=None):
 
-        if constraint is not None:
-            if not isinstance(constraint, util.string_types) and isinstance(
+        if (
+            constraint is not None
+            and not isinstance(constraint, util.string_types)
+            and isinstance(
                 constraint,
                 (schema.Index, schema.Constraint, ext.ExcludeConstraint),
-            ):
-                constraint = getattr(constraint, "name") or constraint
+            )
+        ):
+            constraint = getattr(constraint, "name") or constraint
 
         if constraint is not None:
             if index_elements is not None:

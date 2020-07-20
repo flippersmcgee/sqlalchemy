@@ -865,10 +865,7 @@ class FBDialect(default.DefaultDialect):
             elif colspec == "TEXT":
                 coltype = TEXT(row["flen"])
             elif colspec == "BLOB":
-                if row["stype"] == 1:
-                    coltype = TEXT()
-                else:
-                    coltype = BLOB()
+                coltype = TEXT() if row["stype"] == 1 else BLOB()
             else:
                 coltype = coltype()
 

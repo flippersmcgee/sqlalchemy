@@ -1685,14 +1685,14 @@ class OracleDialect(default.DefaultDialect):
         if schema is not None:
             params["owner"] = schema
             text += " AND owner = :owner "
-        text = text % {"dblink": dblink, "columns": ", ".join(columns)}
+        text %= {"dblink": dblink, "columns": ", ".join(columns)}
 
         result = connection.execute(sql.text(text), params)
 
-        enabled = dict(DISABLED=False, ENABLED=True)
-
         row = result.first()
         if row:
+            enabled = dict(DISABLED=False, ENABLED=True)
+
             if "compression" in row._fields and enabled.get(
                 row.compression, False
             ):
@@ -1750,7 +1750,7 @@ class OracleDialect(default.DefaultDialect):
             params["owner"] = schema
             text += " AND col.owner = :owner "
         text += " ORDER BY col.column_id"
-        text = text % {"dblink": dblink, "char_length_col": char_length_col}
+        text %= {"dblink": dblink, "char_length_col": char_length_col}
 
         c = connection.execute(sql.text(text), params)
 
@@ -1888,7 +1888,7 @@ class OracleDialect(default.DefaultDialect):
 
         text += "ORDER BY a.index_name, a.column_position"
 
-        text = text % {"dblink": dblink}
+        text %= {"dblink": dblink}
 
         q = sql.text(text)
         rp = connection.execute(q, params)
@@ -1988,10 +1988,9 @@ class OracleDialect(default.DefaultDialect):
             "\nORDER BY ac.constraint_name, loc.position"
         )
 
-        text = text % {"dblink": dblink}
+        text %= {"dblink": dblink}
         rp = connection.execute(sql.text(text), params)
-        constraint_data = rp.fetchall()
-        return constraint_data
+        return rp.fetchall()
 
     @reflection.cache
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
@@ -2025,7 +2024,7 @@ class OracleDialect(default.DefaultDialect):
                 remote_table,
                 remote_column,
                 remote_owner,
-            ) = row[0:2] + tuple([self.normalize_name(x) for x in row[2:6]])
+            ) = row[0:2] + tuple(self.normalize_name(x) for x in row[2:6])
             if cons_type == "P":
                 if constraint_name is None:
                     constraint_name = self.normalize_name(cons_name)

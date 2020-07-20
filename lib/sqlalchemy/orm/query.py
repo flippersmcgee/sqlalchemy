@@ -1010,7 +1010,7 @@ class Query(
 
     # TODO: removed in 2.0, use with_parent standalone in filter
     @util.preload_module("sqlalchemy.orm.relationships")
-    def with_parent(self, instance, property=None, from_entity=None):  # noqa
+    def with_parent(self, instance, property=None, from_entity=None):    # noqa
         """Add filtering criterion that relates the given instance
         to a child object or collection, using its attribute state
         as well as an established :func:`_orm.relationship()`
@@ -1037,8 +1037,6 @@ class Query(
           "zero" entity of the :class:`_query.Query` itself.
 
         """
-        relationships = util.preloaded.orm_relationships
-
         if from_entity:
             entity_zero = inspect(from_entity)
         else:
@@ -1046,6 +1044,8 @@ class Query(
         if property is None:
             # TODO: deprecate, property has to be supplied
             mapper = object_mapper(instance)
+
+            relationships = util.preloaded.orm_relationships
 
             for prop in mapper.iterate_properties:
                 if (
@@ -1455,13 +1455,11 @@ class Query(
         """
 
         opts = tuple(util.flatten_iterator(args))
-        if self._compile_options._current_path:
-            for opt in opts:
-                if opt._is_legacy_option:
+        for opt in opts:
+            if opt._is_legacy_option:
+                if self._compile_options._current_path:
                     opt.process_query_conditionally(self)
-        else:
-            for opt in opts:
-                if opt._is_legacy_option:
+                else:
                     opt.process_query(self)
 
         self._with_options += opts
@@ -2535,12 +2533,10 @@ class Query(
 
         """
         if expr:
-            self._distinct = True
             self._distinct_on = self._distinct_on + tuple(
                 coercions.expect(roles.ByOfRole, e) for e in expr
             )
-        else:
-            self._distinct = True
+        self._distinct = True
 
     def all(self):
         """Return the results represented by this :class:`_query.Query`
@@ -3098,14 +3094,12 @@ class Query(
 
     def _compile_context(self, for_statement=False):
         compile_state = self._compile_state(for_statement=for_statement)
-        context = QueryContext(
+        return QueryContext(
             compile_state,
             compile_state.statement,
             self.session,
             self.load_options,
         )
-
-        return context
 
 
 class FromStatement(SelectStatementGrouping, Executable):
@@ -3160,12 +3154,10 @@ class FromStatement(SelectStatementGrouping, Executable):
         return self
 
     def get_children(self, **kw):
-        for elem in itertools.chain.from_iterable(
+        yield from itertools.chain.from_iterable(
             element._from_objects for element in self._raw_columns
-        ):
-            yield elem
-        for elem in super(FromStatement, self).get_children(**kw):
-            yield elem
+        )
+        yield from super(FromStatement, self).get_children(**kw)
 
 
 class AliasOption(interfaces.LoaderOption):

@@ -62,10 +62,10 @@ def has_inherited_table(cls):
         :ref:`decl_mixin_inheritance`
 
     """
-    for class_ in cls.__mro__[1:]:
-        if getattr(class_, "__table__", None) is not None:
-            return True
-    return False
+    return any(
+        getattr(class_, "__table__", None) is not None
+        for class_ in cls.__mro__[1:]
+    )
 
 
 class DeclarativeMeta(type):
@@ -787,12 +787,11 @@ class DeferredReflection(object):
 @inspection._inspects(DeclarativeMeta)
 def _inspect_decl_meta(cls):
     mp = _inspect_mapped_class(cls)
-    if mp is None:
-        if _DeferredMapperConfig.has_cls(cls):
-            _DeferredMapperConfig.raise_unmapped_for_cls(cls)
-            raise orm_exc.UnmappedClassError(
-                cls,
-                msg="Class %s has a deferred mapping on it.  It is not yet "
-                "usable as a mapped class." % orm_exc._safe_cls_name(cls),
-            )
+    if mp is None and _DeferredMapperConfig.has_cls(cls):
+        _DeferredMapperConfig.raise_unmapped_for_cls(cls)
+        raise orm_exc.UnmappedClassError(
+            cls,
+            msg="Class %s has a deferred mapping on it.  It is not yet "
+            "usable as a mapped class." % orm_exc._safe_cls_name(cls),
+        )
     return mp

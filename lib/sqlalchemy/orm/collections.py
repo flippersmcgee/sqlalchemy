@@ -1056,11 +1056,7 @@ def _instrument_membership_mutator(method, before, argument, after):
                     )
 
         initiator = kw.pop("_sa_initiator", None)
-        if initiator is False:
-            executor = None
-        else:
-            executor = args[0]._sa_adapter
-
+        executor = None if initiator is False else args[0]._sa_adapter
         if before and executor:
             getattr(executor, before)(value, initiator)
 
@@ -1162,17 +1158,14 @@ def _list_decorators():
                 start = index.start or 0
                 if start < 0:
                     start += len(self)
-                if index.stop is not None:
-                    stop = index.stop
-                else:
-                    stop = len(self)
+                stop = index.stop if index.stop is not None else len(self)
                 if stop < 0:
                     stop += len(self)
 
                 if step == 1:
                     if value is self:
                         return
-                    for i in range(start, stop, step):
+                    for _ in range(start, stop, step):
                         if len(self) > start:
                             del self[start]
 
@@ -1197,14 +1190,14 @@ def _list_decorators():
             if not isinstance(index, slice):
                 item = self[index]
                 __del(self, item)
-                fn(self, index)
             else:
                 # slice deletion requires __getslice__ and a slice-groking
                 # __getitem__ for stepped deletion
                 # note: not breaking this into atomic dels
                 for item in self[index]:
                     __del(self, item)
-                fn(self, index)
+
+            fn(self, index)
 
         _tidy(__delitem__)
         return __delitem__
@@ -1321,10 +1314,7 @@ def _dict_decorators():
         def pop(self, key, default=Unspecified):
             __before_pop(self)
             _to_del = key in self
-            if default is Unspecified:
-                item = fn(self, key)
-            else:
-                item = fn(self, key, default)
+            item = fn(self, key) if default is Unspecified else fn(self, key, default)
             if _to_del:
                 __del(self, item)
             return item

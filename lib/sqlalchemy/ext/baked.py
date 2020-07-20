@@ -388,10 +388,7 @@ class Result(object):
         if query is None:
             query, statement = bq._bake(self.session)
 
-        if self._params:
-            q = query.params(self._params)
-        else:
-            q = query
+        q = query.params(self._params) if self._params else query
         for fn in self._post_criteria:
             q = fn(q)
 
@@ -518,15 +515,10 @@ class Result(object):
             # None present in ident - turn those comparisons
             # into "IS NULL"
             if None in primary_key_identity:
-                nones = set(
-                    [
-                        _get_params[col].key
-                        for col, value in zip(
-                            mapper.primary_key, primary_key_identity
-                        )
-                        if value is None
-                    ]
-                )
+                nones = {_get_params[col].key for col, value in zip(
+                                    mapper.primary_key, primary_key_identity
+                                )
+                                if value is None}
                 _lcl_get_clause = sql_util.adapt_criterion_to_null(
                     _lcl_get_clause, nones
                 )

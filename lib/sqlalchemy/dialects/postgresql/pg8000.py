@@ -94,28 +94,21 @@ except ImportError:
 
 class _PGNumeric(sqltypes.Numeric):
     def result_processor(self, dialect, coltype):
-        if self.asdecimal:
-            if coltype in _FLOAT_TYPES:
+        if coltype in _FLOAT_TYPES:
+            if self.asdecimal:
                 return processors.to_decimal_processor_factory(
                     decimal.Decimal, self._effective_decimal_return_scale
                 )
-            elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
-                # pg8000 returns Decimal natively for 1700
-                return None
             else:
-                raise exc.InvalidRequestError(
-                    "Unknown PG numeric type: %d" % coltype
-                )
-        else:
-            if coltype in _FLOAT_TYPES:
                 # pg8000 returns float natively for 701
                 return None
-            elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
-                return processors.to_float
-            else:
-                raise exc.InvalidRequestError(
-                    "Unknown PG numeric type: %d" % coltype
-                )
+        elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
+            # pg8000 returns Decimal natively for 1700
+            return None
+        else:
+            raise exc.InvalidRequestError(
+                "Unknown PG numeric type: %d" % coltype
+            )
 
 
 class _PGNumericNoBind(_PGNumeric):
@@ -217,14 +210,9 @@ class PGDialect_pg8000(PGDialect):
     @util.memoized_property
     def _dbapi_version(self):
         if self.dbapi and hasattr(self.dbapi, "__version__"):
-            return tuple(
-                [
-                    int(x)
-                    for x in re.findall(
-                        r"(\d+)(?:[-\.]?|$)", self.dbapi.__version__
-                    )
-                ]
-            )
+            return tuple(int(x) for x in re.findall(
+                                r"(\d+)(?:[-\.]?|$)", self.dbapi.__version__
+                            ))
         else:
             return (99, 99, 99)
 

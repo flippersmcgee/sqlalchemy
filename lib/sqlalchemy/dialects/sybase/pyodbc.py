@@ -54,10 +54,12 @@ class _SybNumeric_pyodbc(sqltypes.Numeric):
         super_process = super(_SybNumeric_pyodbc, self).bind_processor(dialect)
 
         def process(value):
-            if self.asdecimal and isinstance(value, decimal.Decimal):
-
-                if value.adjusted() < -6:
-                    return processors.to_float(value)
+            if (
+                self.asdecimal
+                and isinstance(value, decimal.Decimal)
+                and value.adjusted() < -6
+            ):
+                return processors.to_float(value)
 
             if super_process:
                 return super_process(value)
@@ -69,10 +71,7 @@ class _SybNumeric_pyodbc(sqltypes.Numeric):
 
 class SybaseExecutionContext_pyodbc(SybaseExecutionContext):
     def set_ddl_autocommit(self, connection, value):
-        if value:
-            connection.autocommit = True
-        else:
-            connection.autocommit = False
+        connection.autocommit = True if value else False
 
 
 class SybaseDialect_pyodbc(PyODBCConnector, SybaseDialect):

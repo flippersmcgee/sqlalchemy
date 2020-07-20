@@ -386,11 +386,7 @@ class ORMAdapter(sql_util.ColumnAdapter):
         self.mapper = info.mapper
         selectable = info.selectable
         is_aliased_class = info.is_aliased_class
-        if is_aliased_class:
-            self.aliased_class = entity
-        else:
-            self.aliased_class = None
-
+        self.aliased_class = entity if is_aliased_class else None
         sql_util.ColumnAdapter.__init__(
             self,
             selectable,
@@ -1052,9 +1048,7 @@ def with_polymorphic(
     if _existing_alias:
         assert _existing_alias.mapper is primary_mapper
         classes = util.to_set(classes)
-        new_classes = set(
-            [mp.class_ for mp in _existing_alias.with_polymorphic_mappers]
-        )
+        new_classes = {mp.class_ for mp in _existing_alias.with_polymorphic_mappers}
         if classes == new_classes:
             return _existing_alias
         else:
@@ -1524,10 +1518,11 @@ def _entity_corresponds_to(given, entity):
 
     """
     if entity.is_aliased_class:
-        if given.is_aliased_class:
-            if entity._base_alias() is given._base_alias():
-                return True
-        return False
+        return bool(
+            given.is_aliased_class
+            and entity._base_alias() is given._base_alias()
+        )
+
     elif given.is_aliased_class:
         if given._use_mapper_path:
             return entity in given.with_polymorphic_mappers
@@ -1673,9 +1668,9 @@ def _make_slice(limit_clause, offset_clause, start, stop):
 
         limit_clause = _offset_or_limit_clause(stop - start)
 
-    elif start is None and stop is not None:
+    elif stop is not None:
         limit_clause = _offset_or_limit_clause(stop)
-    elif start is not None and stop is None:
+    elif start is not None:
         offset_clause = _offset_or_limit_clause_asint_if_possible(
             offset_clause
         )

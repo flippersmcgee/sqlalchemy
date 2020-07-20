@@ -500,28 +500,21 @@ class _PGNumeric(sqltypes.Numeric):
         return None
 
     def result_processor(self, dialect, coltype):
-        if self.asdecimal:
-            if coltype in _FLOAT_TYPES:
+        if coltype in _FLOAT_TYPES:
+            if self.asdecimal:
                 return processors.to_decimal_processor_factory(
                     decimal.Decimal, self._effective_decimal_return_scale
                 )
-            elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
-                # pg8000 returns Decimal natively for 1700
-                return None
             else:
-                raise exc.InvalidRequestError(
-                    "Unknown PG numeric type: %d" % coltype
-                )
-        else:
-            if coltype in _FLOAT_TYPES:
                 # pg8000 returns float natively for 701
                 return None
-            elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
-                return processors.to_float
-            else:
-                raise exc.InvalidRequestError(
-                    "Unknown PG numeric type: %d" % coltype
-                )
+        elif coltype in _DECIMAL_TYPES or coltype in _INT_TYPES:
+            # pg8000 returns Decimal natively for 1700
+            return None
+        else:
+            raise exc.InvalidRequestError(
+                "Unknown PG numeric type: %d" % coltype
+            )
 
 
 class _PGEnum(ENUM):

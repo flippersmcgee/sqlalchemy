@@ -608,10 +608,11 @@ class SybaseDDLCompiler(compiler.DDLCompiler):
                 colspec += " DEFAULT " + default
 
             if column.nullable is not None:
-                if not column.nullable or column.primary_key:
-                    colspec += " NOT NULL"
-                else:
-                    colspec += " NULL"
+                colspec += (
+                    " NOT NULL"
+                    if not column.nullable or column.primary_key
+                    else " NULL"
+                )
 
         return colspec
 
@@ -619,7 +620,7 @@ class SybaseDDLCompiler(compiler.DDLCompiler):
         index = drop.element
         return "\nDROP INDEX %s.%s" % (
             self.preparer.quote_identifier(index.table.name),
-            self._prepared_index_name(drop.element, include_schema=False),
+            self._prepared_index_name(index, include_schema=False),
         )
 
 
@@ -801,14 +802,13 @@ class SybaseDialect(default.DefaultDialect):
         else:
             default = None
 
-        column_info = dict(
+        return dict(
             name=name,
             type=coltype,
             nullable=nullable,
             default=default,
             autoincrement=autoincrement,
         )
-        return column_info
 
     @reflection.cache
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
@@ -951,9 +951,7 @@ class SybaseDialect(default.DefaultDialect):
         results = connection.execute(INDEX_SQL, table_id=table_id)
         indexes = []
         for r in results:
-            column_names = []
-            for i in range(1, r["count"]):
-                column_names.append(r["col_%i" % (i,)])
+            column_names = [r["col_%i" % (i,)] for i in range(1, r["count"])]
             index_info = {
                 "name": r["name"],
                 "unique": bool(r["unique"]),
@@ -1002,10 +1000,8 @@ class SybaseDialect(default.DefaultDialect):
         pks = results.fetchone()
         results.close()
 
-        constrained_columns = []
         if pks:
-            for i in range(1, pks["count"] + 1):
-                constrained_columns.append(pks["pk_%i" % (i,)])
+            constrained_columns = [pks["pk_%i" % (i,)] for i in range(1, pks["count"] + 1)]
             return {
                 "constrained_columns": constrained_columns,
                 "name": pks["name"],
@@ -1036,9 +1032,8 @@ class SybaseDialect(default.DefaultDialect):
         """
         )
 
-        if util.py2k:
-            if isinstance(schema, unicode):  # noqa
-                schema = schema.encode("ascii")
+        if util.py2k and isinstance(schema, unicode):  # noqa
+            schema = schema.encode("ascii")
 
         tables = connection.execute(TABLE_SQL, schema_name=schema)
 
@@ -1058,9 +1053,8 @@ class SybaseDialect(default.DefaultDialect):
         """
         )
 
-        if util.py2k:
-            if isinstance(view_name, unicode):  # noqa
-                view_name = view_name.encode("ascii")
+        if util.py2k and isinstance(view_name, unicode):  # noqa
+            view_name = view_name.encode("ascii")
 
         view = connection.execute(VIEW_DEF_SQL, view_name=view_name)
 
@@ -1080,9 +1074,8 @@ class SybaseDialect(default.DefaultDialect):
         """
         )
 
-        if util.py2k:
-            if isinstance(schema, unicode):  # noqa
-                schema = schema.encode("ascii")
+        if util.py2k and isinstance(schema, unicode):  # noqa
+            schema = schema.encode("ascii")
         views = connection.execute(VIEW_SQL, schema_name=schema)
 
         return [v["name"] for v in views]

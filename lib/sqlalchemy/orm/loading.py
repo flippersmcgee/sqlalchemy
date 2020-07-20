@@ -113,9 +113,7 @@ def instances(cursor, context):
                 proc = process[0]
                 rows = [proc(row) for row in fetch]
             else:
-                rows = [
-                    tuple([proc(row) for proc in process]) for row in fetch
-                ]
+                rows = [tuple(proc(row) for proc in process) for row in fetch]
 
             for path, post_load in context.post_load_paths.items():
                 post_load.invoke(context, path)
@@ -989,16 +987,11 @@ def _populate_full(
 
         for key, getter in populators["quick"]:
             dict_[key] = getter(row)
-        if populate_existing:
-            for key, set_callable in populators["expire"]:
+        for key, set_callable in populators["expire"]:
+            if populate_existing:
                 dict_.pop(key, None)
-                if set_callable:
-                    state.expired_attributes.add(key)
-        else:
-            for key, set_callable in populators["expire"]:
-                if set_callable:
-                    state.expired_attributes.add(key)
-
+            if set_callable:
+                state.expired_attributes.add(key)
         for key, populator in populators["new"]:
             populator(state, dict_, row)
         for key, populator in populators["delayed"]:

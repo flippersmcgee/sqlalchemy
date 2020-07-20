@@ -432,10 +432,7 @@ class SQLiteDialect_pysqlite(SQLiteDialect):
 
     @classmethod
     def _is_url_file_db(cls, url):
-        if url.database and url.database != ":memory:":
-            return True
-        else:
-            return False
+        return bool(url.database and url.database != ":memory:")
 
     @classmethod
     def get_pool_class(cls, url):
