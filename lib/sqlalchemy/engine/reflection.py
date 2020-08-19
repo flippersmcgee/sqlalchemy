@@ -195,10 +195,7 @@ class Inspector(object):
         :class:`_engine.Connection`.
 
         """
-        if self._op_context_requires_connect:
-            conn = self.bind.connect()
-        else:
-            conn = self.bind
+        conn = self.bind.connect() if self._op_context_requires_connect else self.bind
         try:
             yield conn
         finally:
@@ -331,7 +328,7 @@ class Inspector(object):
         fknames_for_table = {}
         for tname in tnames:
             fkeys = self.get_foreign_keys(tname, schema)
-            fknames_for_table[tname] = set([fk["name"] for fk in fkeys])
+            fknames_for_table[tname] = {fk["name"] for fk in fkeys}
             for fkey in fkeys:
                 if tname != fkey["referred_table"]:
                     tuples.add((fkey["referred_table"], tname))
@@ -742,11 +739,12 @@ class Inspector(object):
         # intended for reflection, e.g. oracle_resolve_synonyms.
         # these are unconditionally passed to related Table
         # objects
-        reflection_options = dict(
-            (k, table.dialect_kwargs.get(k))
+        reflection_options = {
+            k: table.dialect_kwargs.get(k)
             for k in dialect.reflection_options
             if k in table.dialect_kwargs
-        )
+        }
+
 
         # reflect table options, like mysql_engine
         tbl_opts = self.get_table_options(
@@ -849,18 +847,15 @@ class Inspector(object):
 
         coltype = col_d["type"]
 
-        col_kw = dict(
-            (k, col_d[k])
-            for k in [
-                "nullable",
-                "autoincrement",
-                "quote",
-                "info",
-                "key",
-                "comment",
-            ]
-            if k in col_d
-        )
+        col_kw = {k: col_d[k] for k in [
+                    "nullable",
+                    "autoincrement",
+                    "quote",
+                    "info",
+                    "key",
+                    "comment",
+                ]
+                if k in col_d}
 
         if "dialect_options" in col_d:
             col_kw.update(col_d["dialect_options"])
@@ -981,10 +976,7 @@ class Inspector(object):
                     )
                 for column in referred_columns:
                     refspec.append(".".join([referred_table, column]))
-            if "options" in fkey_d:
-                options = fkey_d["options"]
-            else:
-                options = {}
+            options = fkey_d["options"] if "options" in fkey_d else {}
             table.append_constraint(
                 sa_schema.ForeignKeyConstraint(
                     constrained_columns,

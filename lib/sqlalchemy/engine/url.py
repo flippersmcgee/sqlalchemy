@@ -67,10 +67,7 @@ class URL(object):
         self.username = username
         self.password_original = password
         self.host = host
-        if port is not None:
-            self.port = int(port)
-        else:
-            self.port = None
+        self.port = int(port) if port is not None else None
         self.database = database
         self.query = query or {}
 
@@ -84,10 +81,7 @@ class URL(object):
                 )
             s += "@"
         if self.host is not None:
-            if ":" in self.host:
-                s += "[%s]" % self.host
-            else:
-                s += self.host
+            s += "[%s]" % self.host if ":" in self.host else self.host
         if self.port is not None:
             s += ":" + str(self.port)
         if self.database is not None:
@@ -187,8 +181,7 @@ class URL(object):
         to this URL's driver name.
         """
         entrypoint = self._get_entrypoint()
-        dialect_cls = entrypoint.get_dialect_cls(self)
-        return dialect_cls
+        return entrypoint.get_dialect_cls(self)
 
     def translate_connect_args(self, names=[], **kw):
         r"""Translate url attributes into a dictionary of connection arguments.

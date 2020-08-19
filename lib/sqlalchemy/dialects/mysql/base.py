@@ -1581,11 +1581,7 @@ class MySQLCompiler(compiler.SQLCompiler):
         )
 
     def for_update_clause(self, select, **kw):
-        if select._for_update_arg.read:
-            tmp = " LOCK IN SHARE MODE"
-        else:
-            tmp = " FOR UPDATE"
-
+        tmp = " LOCK IN SHARE MODE" if select._for_update_arg.read else " FOR UPDATE"
         if select._for_update_arg.of and self.dialect.supports_for_update_of:
 
             tables = util.OrderedSet()
@@ -1761,11 +1757,12 @@ class MySQLDDLCompiler(compiler.DDLCompiler):
 
         table_opts = []
 
-        opts = dict(
-            (k[len(self.dialect.name) + 1 :].upper(), v)
+        opts = {
+            k[len(self.dialect.name) + 1 :].upper(): v
             for k, v in table.kwargs.items()
             if k.startswith("%s_" % self.dialect.name)
-        )
+        }
+
 
         if table.comment is not None:
             opts["COMMENT"] = table.comment
@@ -1815,6 +1812,8 @@ class MySQLDDLCompiler(compiler.DDLCompiler):
 
             table_opts.append(joiner.join((opt, arg)))
 
+        joiner = " "
+
         for opt in topological.sort(
             [
                 ("PARTITION_BY", "PARTITIONS"),
@@ -1833,8 +1832,6 @@ class MySQLDDLCompiler(compiler.DDLCompiler):
                 )
 
             opt = opt.replace("_", " ")
-            joiner = " "
-
             table_opts.append(joiner.join((opt, arg)))
 
         return " ".join(table_opts)
@@ -1929,10 +1926,7 @@ class MySQLDDLCompiler(compiler.DDLCompiler):
             qual = "INDEX "
             const = self.preparer.format_constraint(constraint)
         elif isinstance(constraint, sa_schema.CheckConstraint):
-            if self.dialect._is_mariadb:
-                qual = "CONSTRAINT "
-            else:
-                qual = "CHECK "
+            qual = "CONSTRAINT " if self.dialect._is_mariadb else "CHECK "
             const = self.preparer.format_constraint(constraint)
         else:
             qual = ""
@@ -2257,9 +2251,7 @@ class MySQLTypeCompiler(compiler.GenericTypeCompiler):
         return "LONGBLOB"
 
     def _visit_enumerated_values(self, name, type_, enumerated_values):
-        quoted_enums = []
-        for e in enumerated_values:
-            quoted_enums.append("'%s'" % e.replace("'", "''"))
+        quoted_enums = ["'%s'" % e.replace("'", "''") for e in enumerated_values]
         return self._extend_string(
             type_, {}, "%s(%s)" % (name, ",".join(quoted_enums))
         )
@@ -2279,11 +2271,7 @@ class MySQLIdentifierPreparer(compiler.IdentifierPreparer):
     reserved_words = RESERVED_WORDS
 
     def __init__(self, dialect, server_ansiquotes=False, **kw):
-        if not server_ansiquotes:
-            quote = "`"
-        else:
-            quote = '"'
-
+        quote = "`" if not server_ansiquotes else '"'
         super(MySQLIdentifierPreparer, self).__init__(
             dialect, initial_quote=quote, escape_quote=quote
         )
@@ -2291,7 +2279,7 @@ class MySQLIdentifierPreparer(compiler.IdentifierPreparer):
     def _quote_free_identifiers(self, *ids):
         """Unilaterally identifier-quote any number of strings."""
 
-        return tuple([self.quote_identifier(i) for i in ids if i is not None])
+        return tuple(self.quote_identifier(i) for i in ids if i is not None)
 
 
 @log.class_logger
@@ -2732,11 +2720,7 @@ class MySQLDialect(default.DefaultDialect):
     @reflection.cache
     def get_table_names(self, connection, schema=None, **kw):
         """Return a Unicode SHOW TABLES from a given schema."""
-        if schema is not None:
-            current_schema = schema
-        else:
-            current_schema = self.default_schema_name
-
+        current_schema = schema if schema is not None else self.default_schema_name
         charset = self._connection_charset
         if self.server_version_info < (5, 0, 2):
             rp = connection.exec_driver_sql(
@@ -2764,8 +2748,6 @@ class MySQLDialect(default.DefaultDialect):
             raise NotImplementedError
         if schema is None:
             schema = self.default_schema_name
-        if self.server_version_info < (5, 0, 2):
-            return self.get_table_names(connection, schema)
         charset = self._connection_charset
         rp = connection.exec_driver_sql(
             "SHOW FULL TABLES FROM %s"
@@ -2967,14 +2949,10 @@ class MySQLDialect(default.DefaultDialect):
                 unique = True
             elif flavor in ("FULLTEXT", "SPATIAL"):
                 dialect_options["mysql_prefix"] = flavor
-            elif flavor is None:
-                pass
-            else:
+            elif flavor is not None:
                 self.logger.info(
                     "Converting unknown KEY type %s to a plain KEY", flavor
                 )
-                pass
-
             if spec["parser"]:
                 dialect_options["mysql_with_parser"] = spec["parser"]
 
@@ -3015,10 +2993,9 @@ class MySQLDialect(default.DefaultDialect):
         full_name = ".".join(
             self.identifier_preparer._quote_free_identifiers(schema, view_name)
         )
-        sql = self._show_create_table(
+        return self._show_create_table(
             connection, None, charset, full_name=full_name
         )
-        return sql
 
     def _parsed_state_or_create(
         self, connection, table_name, schema=None, **kw
@@ -3105,9 +3082,7 @@ class MySQLDialect(default.DefaultDialect):
         """
 
         collations = {}
-        if self.server_version_info < (4, 1, 0):
-            pass
-        else:
+        if self.server_version_info >= (4, 1, 0):
             charset = self._connection_charset
             rs = connection.exec_driver_sql("SHOW COLLATION")
             for row in self._compat_fetchall(rs, charset):

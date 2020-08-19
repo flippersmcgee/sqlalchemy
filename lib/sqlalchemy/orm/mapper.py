@@ -672,11 +672,7 @@ class Mapper(
         # a dictionary of 'polymorphic identity' names, associating those
         # names with Mappers that will be used to construct object instances
         # upon a select operation.
-        if _polymorphic_map is None:
-            self.polymorphic_map = {}
-        else:
-            self.polymorphic_map = _polymorphic_map
-
+        self.polymorphic_map = {} if _polymorphic_map is None else _polymorphic_map
         if include_properties is not None:
             self.include_properties = util.to_set(include_properties)
         else:
@@ -1392,15 +1388,12 @@ class Mapper(
 
         # determine cols that aren't expressed within our tables; mark these
         # as "read only" properties which are refreshed upon INSERT/UPDATE
-        self._readonly_props = set(
+        self._readonly_props = {
             self._columntoproperty[col]
             for col in self._columntoproperty
             if self._columntoproperty[col] not in self._identity_key_props
-            and (
-                not hasattr(col, "table")
-                or col.table not in self._cols_by_table
-            )
-        )
+            and (not hasattr(col, "table") or col.table not in self._cols_by_table)
+        }
 
     def _configure_properties(self):
         # Column and other ClauseElement objects which are mapped
@@ -2130,77 +2123,50 @@ class Mapper(
 
     @HasMemoized.memoized_attribute
     def _insert_cols_evaluating_none(self):
-        return dict(
-            (
-                table,
-                frozenset(
+        return {table: frozenset(
                     col for col in columns if col.type.should_evaluate_none
-                ),
-            )
-            for table, columns in self._cols_by_table.items()
-        )
+                ) for table, columns in self._cols_by_table.items()}
 
     @HasMemoized.memoized_attribute
     def _insert_cols_as_none(self):
-        return dict(
-            (
-                table,
-                frozenset(
+        return {table: frozenset(
                     col.key
                     for col in columns
                     if not col.primary_key
                     and not col.server_default
                     and not col.default
                     and not col.type.should_evaluate_none
-                ),
-            )
-            for table, columns in self._cols_by_table.items()
-        )
+                ) for table, columns in self._cols_by_table.items()}
 
     @HasMemoized.memoized_attribute
     def _propkey_to_col(self):
-        return dict(
-            (
-                table,
-                dict(
-                    (self._columntoproperty[col].key, col) for col in columns
-                ),
-            )
+        return {
+            table: {self._columntoproperty[col].key: col for col in columns}
             for table, columns in self._cols_by_table.items()
-        )
+        }
 
     @HasMemoized.memoized_attribute
     def _pk_keys_by_table(self):
-        return dict(
-            (table, frozenset([col.key for col in pks]))
+        return {
+            table: frozenset(col.key for col in pks)
             for table, pks in self._pks_by_table.items()
-        )
+        }
 
     @HasMemoized.memoized_attribute
     def _pk_attr_keys_by_table(self):
-        return dict(
-            (
-                table,
-                frozenset([self._columntoproperty[col].key for col in pks]),
-            )
+        return {
+            table: frozenset(self._columntoproperty[col].key for col in pks)
             for table, pks in self._pks_by_table.items()
-        )
+        }
 
     @HasMemoized.memoized_attribute
     def _server_default_cols(self):
-        return dict(
-            (
-                table,
-                frozenset(
-                    [
-                        col.key
-                        for col in columns
-                        if col.server_default is not None
-                    ]
-                ),
+        return {
+            table: frozenset(
+                col.key for col in columns if col.server_default is not None
             )
             for table, columns in self._cols_by_table.items()
-        )
+        }
 
     @HasMemoized.memoized_attribute
     def _server_default_plus_onupdate_propkeys(self):
@@ -2218,19 +2184,12 @@ class Mapper(
 
     @HasMemoized.memoized_attribute
     def _server_onupdate_default_cols(self):
-        return dict(
-            (
-                table,
-                frozenset(
-                    [
-                        col.key
-                        for col in columns
-                        if col.server_onupdate is not None
-                    ]
-                ),
+        return {
+            table: frozenset(
+                col.key for col in columns if col.server_onupdate is not None
             )
             for table, columns in self._cols_by_table.items()
-        )
+        }
 
     @HasMemoized.memoized_instancemethod
     def __clause_element__(self):
@@ -2345,8 +2304,7 @@ class Mapper(
             mappers = self._with_polymorphic_mappers
 
         if not mappers:
-            for c in self.iterate_properties:
-                yield c
+            yield from self.iterate_properties
         else:
             # in the polymorphic case, filter out discriminator columns
             # from other mappers, as these are sometimes dependent on that
@@ -2601,17 +2559,14 @@ class Mapper(
         return result
 
     def _is_userland_descriptor(self, obj):
-        if isinstance(
+        return not isinstance(
             obj,
             (
                 _MappedAttribute,
                 instrumentation.ClassManager,
                 expression.ColumnElement,
             ),
-        ):
-            return False
-        else:
-            return True
+        )
 
     def _should_exclude(self, name, assigned_name, local, column):
         """determine whether a particular property should be implicitly
@@ -2796,10 +2751,8 @@ class Mapper(
         return (
             self._identity_class,
             tuple(
-                [
-                    manager[prop.key].impl.get(state, dict_, passive)
-                    for prop in self._identity_key_props
-                ]
+                manager[prop.key].impl.get(state, dict_, passive)
+                for prop in self._identity_key_props
             ),
             state.identity_token,
         )
@@ -3053,11 +3006,7 @@ class Mapper(
             for pk in self.primary_key
         ]
 
-        if len(primary_key) > 1:
-            in_expr = sql.tuple_(*primary_key)
-        else:
-            in_expr = primary_key[0]
-
+        in_expr = sql.tuple_(*primary_key) if len(primary_key) > 1 else primary_key[0]
         if entity.is_aliased_class:
             assert entity.mapper is self
 
@@ -3438,9 +3387,8 @@ def _event_on_first_init(manager, cls):
     """
 
     instrumenting_mapper = manager.info.get(_INSTRUMENTOR)
-    if instrumenting_mapper:
-        if Mapper._new_mappers:
-            configure_mappers()
+    if instrumenting_mapper and Mapper._new_mappers:
+        configure_mappers()
 
 
 def _event_on_init(state, args, kwargs):

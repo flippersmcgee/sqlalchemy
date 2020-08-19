@@ -59,7 +59,7 @@ class SQLAlchemyError(Exception):
             if as_unicode and isinstance(text, compat.binary_types):
                 return compat.decode_backslashreplace(text, "utf-8")
             else:
-                return self.args[0]
+                return text
         else:
             # this is not a normal case within SQLAlchemy but is here for
             # compatibility with Exception.args - the str() comes out as

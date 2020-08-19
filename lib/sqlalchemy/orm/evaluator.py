@@ -17,9 +17,7 @@ class UnevaluatableError(Exception):
     pass
 
 
-_straight_ops = set(
-    getattr(operators, op)
-    for op in (
+_straight_ops = {getattr(operators, op) for op in (
         "add",
         "mul",
         "sub",
@@ -32,17 +30,14 @@ _straight_ops = set(
         "gt",
         "ge",
         "eq",
-    )
-)
+    )}
 
 _extended_ops = {
     operators.in_op: (lambda a, b: a in b),
     operators.notin_op: (lambda a, b: a not in b),
 }
 
-_notimplemented_ops = set(
-    getattr(operators, op)
-    for op in (
+_notimplemented_ops = {getattr(operators, op) for op in (
         "like_op",
         "notlike_op",
         "ilike_op",
@@ -51,8 +46,7 @@ _notimplemented_ops = set(
         "between_op",
         "endswith_op",
         "concat_op",
-    )
-)
+    )}
 
 
 class EvaluatorCompiler(object):
@@ -215,8 +209,5 @@ class EvaluatorCompiler(object):
         )
 
     def visit_bindparam(self, clause):
-        if clause.callable:
-            val = clause.callable()
-        else:
-            val = clause.value
+        val = clause.callable() if clause.callable else clause.value
         return lambda obj: val

@@ -61,11 +61,10 @@ except ImportError:
 
             if processors:
                 self._data = tuple(
-                    [
-                        proc(value) if proc else value
-                        for proc, value in zip(processors, data)
-                    ]
+                    proc(value) if proc else value
+                    for proc, value in zip(processors, data)
                 )
+
             else:
                 self._data = tuple(data)
 
@@ -303,7 +302,7 @@ class Row(BaseRow, collections_abc.Sequence):
             :attr:`.Row._mapping`
 
         """
-        return tuple([k for k in self._parent.keys if k is not None])
+        return tuple(k for k in self._parent.keys if k is not None)
 
     def _asdict(self):
         """Return a new dict which maps field names to their corresponding

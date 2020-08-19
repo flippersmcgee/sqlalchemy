@@ -132,7 +132,7 @@ class PyODBCConnector(Connector):
         m = re.match(r"(?:py.*-)?([\d\.]+)(?:-(\w+))?", vers)
         if not m:
             return ()
-        vers = tuple([int(x) for x in m.group(1).split(".")])
+        vers = tuple(int(x) for x in m.group(1).split("."))
         if m.group(2):
             vers += (m.group(2),)
         return vers

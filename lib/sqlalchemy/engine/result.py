@@ -43,7 +43,7 @@ else:
             operator.methodcaller("_get_by_int_impl", index)
             for index in indexes
         ]
-        return lambda rec: tuple([getter(rec) for getter in getters])
+        return lambda rec: tuple(getter(rec) for getter in getters)
 
 
 class ResultMetaData(object):
@@ -250,7 +250,7 @@ class SimpleResultMetaData(ResultMetaData):
 
         tup = tuplegetter(*indexes)
 
-        new_metadata = SimpleResultMetaData(
+        return SimpleResultMetaData(
             new_keys,
             extra=extra,
             _tuplefilter=tup,
@@ -258,8 +258,6 @@ class SimpleResultMetaData(ResultMetaData):
             _processors=self._processors,
             _unique_filters=self._unique_filters,
         )
-
-        return new_metadata
 
 
 def result_tuple(fields, extra=None):
@@ -710,11 +708,7 @@ class Result(InPlaceGenerative):
         make_row = self._row_getter
 
         rows = self._fetchall_impl()
-        if make_row:
-            made_rows = [make_row(row) for row in rows]
-        else:
-            made_rows = rows
-
+        made_rows = [make_row(row) for row in rows] if make_row else rows
         post_creational_filter = self._post_creational_filter
 
         if self._unique_filter_state:

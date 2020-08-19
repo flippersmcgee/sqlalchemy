@@ -145,12 +145,9 @@ class WeakInstanceDict(IdentityMap):
                 if existing_state is not state:
                     o = existing_state.obj()
                     if o is not None:
-                        raise sa_exc.InvalidRequestError(
-                            "Can't attach instance "
+                        raise sa_exc.InvalidRequestError("Can't attach instance "
                             "%s; another instance with key %s is already "
-                            "present in this session."
-                            % (orm_util.state_str(state), state.key)
-                        )
+                            "present in this session." % (orm_util.state_str(state), key))
                 else:
                     return False
         self._dict[key] = state

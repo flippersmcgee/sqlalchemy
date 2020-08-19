@@ -1248,7 +1248,7 @@ class SubqueryLoader(PostLoader):
         elif distinct_target_key is None:
             # if target_cols refer to a non-primary key or only
             # part of a composite primary key, set the q as distinct
-            for t in set(c.table for c in target_cols):
+            for t in {c.table for c in target_cols}:
                 if not set(target_cols).issuperset(t.primary_key):
                     q._distinct = True
                     break
@@ -1271,10 +1271,9 @@ class SubqueryLoader(PostLoader):
         # LEGACY: as "q" is a Query, the before_compile() event is invoked
         # here.
         embed_q = q.apply_labels().subquery()
-        left_alias = orm_util.AliasedClass(
+        return orm_util.AliasedClass(
             leftmost_mapper, embed_q, use_mapper_path=True
         )
-        return left_alias
 
     def _prep_for_joins(self, left_alias, subq_path):
         # figure out what's being joined.  a.k.a. the fun part
@@ -1354,11 +1353,7 @@ class SubqueryLoader(PostLoader):
             while middle:
                 item = middle.pop(0)
                 attr = getattr(item[0], item[1])
-                if middle:
-                    attr = attr.of_type(middle[0][0])
-                else:
-                    attr = attr.of_type(parent_alias)
-
+                attr = attr.of_type(middle[0][0]) if middle else attr.of_type(parent_alias)
                 inner.append(attr)
 
             to_join = (
@@ -1887,21 +1882,16 @@ class JoinedLoader(AbstractRelationshipLoader):
         # if we are setting up the query for SQL render.
         adapter = entity._get_entity_clauses(context)
 
-        if adapter and user_defined_adapter:
-            user_defined_adapter = user_defined_adapter.wrap(adapter)
+        if adapter:
+            if user_defined_adapter:
+                user_defined_adapter = user_defined_adapter.wrap(adapter)
+            else:
+                user_defined_adapter = adapter
             path.set(
                 context.attributes,
                 "user_defined_eager_row_processor",
                 user_defined_adapter,
             )
-        elif adapter:
-            user_defined_adapter = adapter
-            path.set(
-                context.attributes,
-                "user_defined_eager_row_processor",
-                user_defined_adapter,
-            )
-
         add_to_collection = context.primary_columns
         return user_defined_adapter, adapter, add_to_collection
 
@@ -2010,11 +2000,7 @@ class JoinedLoader(AbstractRelationshipLoader):
         innerjoin,
         chained_from_outerjoin,
     ):
-        if parentmapper is None:
-            localparent = query_entity.mapper
-        else:
-            localparent = parentmapper
-
+        localparent = query_entity.mapper if parentmapper is None else parentmapper
         # whether or not the Query will wrap the selectable in a subquery,
         # and then attach eager load joins to that (i.e., in the case of
         # LIMIT/OFFSET etc.)
@@ -2229,12 +2215,13 @@ class JoinedLoader(AbstractRelationshipLoader):
             # user defined eagerloads are part of the "primary"
             # portion of the load.
             # the adapters applied to the Query should be honored.
-            if compile_state.compound_eager_adapter and decorator:
-                decorator = decorator.wrap(
-                    compile_state.compound_eager_adapter
-                )
-            elif compile_state.compound_eager_adapter:
-                decorator = compile_state.compound_eager_adapter
+            if compile_state.compound_eager_adapter:
+                if decorator:
+                    decorator = decorator.wrap(
+                        compile_state.compound_eager_adapter
+                    )
+                else:
+                    decorator = compile_state.compound_eager_adapter
         else:
             decorator = path.get(
                 compile_state.attributes, "eager_row_processor"

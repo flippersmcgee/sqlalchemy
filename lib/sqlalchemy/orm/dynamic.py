@@ -453,13 +453,13 @@ class AppenderQuery(Generative):
         instance = self.instance
         if sess is None:
             sess = object_session(instance)
-            if sess is None:
-                raise orm_exc.DetachedInstanceError(
-                    "Parent instance %s is not bound to a Session, and no "
-                    "contextual session is established; lazy load operation "
-                    "of attribute '%s' cannot proceed"
-                    % (orm_util.instance_str(instance), self.attr.key)
-                )
+        if sess is None:
+            raise orm_exc.DetachedInstanceError(
+                "Parent instance %s is not bound to a Session, and no "
+                "contextual session is established; lazy load operation "
+                "of attribute '%s' cannot proceed"
+                % (orm_util.instance_str(instance), self.attr.key)
+            )
 
         result = sess.execute(self._statement, future=True)
         result = result.scalars()

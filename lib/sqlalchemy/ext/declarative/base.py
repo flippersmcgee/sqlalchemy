@@ -152,11 +152,7 @@ class _MapperConfig(object):
             cls_, "_sa_decl_prepare_nocascade", strict=True
         ) or hasattr(cls_, "_sa_decl_prepare")
 
-        if defer_map:
-            cfg_cls = _DeferredMapperConfig
-        else:
-            cfg_cls = _MapperConfig
-
+        cfg_cls = _DeferredMapperConfig if defer_map else _MapperConfig
         cfg_cls(cls_, classname, dict_)
 
     def __init__(self, cls_, classname, dict_):
@@ -581,10 +577,10 @@ class _MapperConfig(object):
             )
         elif self.inherits:
             inherited_mapper = _declared_mapping_info(self.inherits)
-            inherited_table = inherited_mapper.local_table
-            inherited_persist_selectable = inherited_mapper.persist_selectable
-
             if table is None:
+                inherited_table = inherited_mapper.local_table
+                inherited_persist_selectable = inherited_mapper.persist_selectable
+
                 # single table inheritance.
                 # ensure no table args
                 if table_args:
@@ -616,11 +612,7 @@ class _MapperConfig(object):
 
     def _prepare_mapper_arguments(self):
         properties = self.properties
-        if self.mapper_args_fn:
-            mapper_args = self.mapper_args_fn()
-        else:
-            mapper_args = {}
-
+        mapper_args = self.mapper_args_fn() if self.mapper_args_fn else {}
         # make sure that column copies are used rather
         # than the original columns from any mixins
         for k in ("version_id_col", "polymorphic_on"):
@@ -644,13 +636,12 @@ class _MapperConfig(object):
             inherited_table = inherited_mapper.local_table
 
             if "exclude_properties" not in mapper_args:
-                mapper_args["exclude_properties"] = exclude_properties = set(
-                    [
-                        c.key
-                        for c in inherited_table.c
-                        if c not in inherited_mapper._columntoproperty
-                    ]
-                ).union(inherited_mapper.exclude_properties or ())
+                mapper_args["exclude_properties"] = exclude_properties = {
+                    c.key
+                    for c in inherited_table.c
+                    if c not in inherited_mapper._columntoproperty
+                }.union((inherited_mapper.exclude_properties or ()))
+
                 exclude_properties.difference_update(
                     [c.key for c in self.declared_columns]
                 )
@@ -740,15 +731,12 @@ class _DeferredMapperConfig(_MapperConfig):
         if not sort:
             return classes_for_base
 
-        all_m_by_cls = dict((m.cls, m) for m in classes_for_base)
+        all_m_by_cls = {m.cls: m for m in classes_for_base}
 
         tuples = []
-        for m_cls in all_m_by_cls:
-            tuples.extend(
-                (all_m_by_cls[base_cls], all_m_by_cls[m_cls])
-                for base_cls in m_cls.__bases__
-                if base_cls in all_m_by_cls
-            )
+        for m_cls, value in all_m_by_cls.items():
+            tuples.extend((all_m_by_cls[base_cls], value) for base_cls in m_cls.__bases__
+                        if base_cls in all_m_by_cls)
         return list(topological.sort(tuples, classes_for_base))
 
     def map(self):

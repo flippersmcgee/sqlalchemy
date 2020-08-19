@@ -167,9 +167,7 @@ class SET(_StringType):
                 "setting retrieve_as_bitwise=True"
             )
         if self.retrieve_as_bitwise:
-            self._bitmap = dict(
-                (value, 2 ** idx) for idx, value in enumerate(self.values)
-            )
+            self._bitmap = {value: 2 ** idx for idx, value in enumerate(self.values)}
             self._bitmap.update(
                 (2 ** idx, value) for idx, value in enumerate(self.values)
             )

@@ -80,9 +80,7 @@ class _MultipleClassMarker(object):
 
     def __init__(self, classes, on_remove=None):
         self.on_remove = on_remove
-        self.contents = set(
-            [weakref.ref(item, self._remove_item) for item in classes]
-        )
+        self.contents = {weakref.ref(item, self._remove_item) for item in classes}
         _registries.add(self)
 
     def __iter__(self):
@@ -114,13 +112,8 @@ class _MultipleClassMarker(object):
         # protect against class registration race condition against
         # asynchronous garbage collection calling _remove_item,
         # [ticket:3208]
-        modules = set(
-            [
-                cls.__module__
-                for cls in [ref() for ref in self.contents]
-                if cls is not None
-            ]
-        )
+        modules = {cls.__module__ for cls in [ref() for ref in self.contents]
+                    if cls is not None}
         if item.__module__ in modules:
             util.warn(
                 "This declarative base already contains a class with the "
@@ -144,10 +137,7 @@ class _ModuleMarker(object):
         self.name = name
         self.contents = {}
         self.mod_ns = _ModNS(self)
-        if self.parent:
-            self.path = self.parent.path + [self.name]
-        else:
-            self.path = []
+        self.path = self.parent.path + [self.name] if self.parent else []
         _registries.add(self)
 
     def __contains__(self, name):
@@ -307,10 +297,7 @@ class _class_resolver(object):
         rval = None
         try:
             for token in name.split("."):
-                if rval is None:
-                    rval = d[token]
-                else:
-                    rval = getattr(rval, token)
+                rval = d[token] if rval is None else getattr(rval, token)
         except KeyError as err:
             self._raise_for_name(name, err)
         except NameError as n:

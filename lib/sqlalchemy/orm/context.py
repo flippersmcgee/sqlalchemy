@@ -710,13 +710,11 @@ class ORMSelectCompileState(ORMCompileState, SelectState):
                 element.is_selectable
                 and "entity_namespace" in element._annotations
             ):
-                for elem in _select_iterables(
+                yield from _select_iterables(
                     element._annotations["entity_namespace"].columns
-                ):
-                    yield elem
+                )
             else:
-                for elem in _select_iterables([element]):
-                    yield elem
+                yield from _select_iterables([element])
 
     @classmethod
     @util.preload_module("sqlalchemy.orm.query")
@@ -2254,9 +2252,7 @@ class _BundleEntity(_QueryEntity):
 
         if setup_entities:
             for expr in bundle.exprs:
-                if "bundle" in expr._annotations:
-                    _BundleEntity(compile_state, expr, parent_bundle=self)
-                elif isinstance(expr, Bundle):
+                if "bundle" in expr._annotations or isinstance(expr, Bundle):
                     _BundleEntity(compile_state, expr, parent_bundle=self)
                 else:
                     _ORMColumnEntity._for_columns(

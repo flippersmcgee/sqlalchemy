@@ -139,10 +139,7 @@ class MySQLTableDefinitionParser(object):
 
         options = {}
 
-        if not line or line == ")":
-            pass
-
-        else:
+        if line and line != ")":
             rest_of_line = line[:]
             for regex, cleanup in self._pr_options:
                 m = regex.search(rest_of_line)
@@ -281,8 +278,7 @@ class MySQLTableDefinitionParser(object):
                 row[i] for i in (0, 1, 2, 4, 5)
             ]
 
-            line = [" "]
-            line.append(self.preparer.quote_identifier(name))
+            line = [" ", self.preparer.quote_identifier(name)]
             line.append(col_type)
             if not nullable:
                 line.append("NOT NULL")
@@ -551,7 +547,7 @@ def _strip_values(values):
     "Strip reflected values quotes"
     strip_values = []
     for a in values:
-        if a[0:1] == '"' or a[0:1] == "'":
+        if a[0:1] in ['"', "'"]:
             # strip enclosing quotes and unquote interior
             a = a[1:-1].replace(a[0] * 2, a[0])
         strip_values.append(a)

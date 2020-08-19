@@ -109,7 +109,7 @@ class SQLiteDialect_pysqlcipher(SQLiteDialect_pysqlite):
     def connect(self, *cargs, **cparams):
         passphrase = cparams.pop("passphrase", "")
 
-        pragmas = dict((key, cparams.pop(key, None)) for key in self.pragmas)
+        pragmas = {key: cparams.pop(key, None) for key in self.pragmas}
 
         conn = super(SQLiteDialect_pysqlcipher, self).connect(
             *cargs, **cparams

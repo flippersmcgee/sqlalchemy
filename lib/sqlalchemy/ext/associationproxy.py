@@ -642,9 +642,7 @@ class AssociationProxyInstance(object):
             self.parent.proxy_bulk_set(proxy, values)
         elif self.collection_class is list:
             proxy.extend(values)
-        elif self.collection_class is dict:
-            proxy.update(values)
-        elif self.collection_class is set:
+        elif self.collection_class is dict or self.collection_class is set:
             proxy.update(values)
         else:
             raise exc.ArgumentError(
@@ -865,7 +863,7 @@ class ObjectAssociationProxyInstance(AssociationProxyInstance):
             return self._comparator.has(
                 getattr(self.target_class, self.value_attr).contains(obj)
             )
-        elif self._target_is_object and self.scalar and self._value_is_scalar:
+        elif self._target_is_object and self.scalar:
             raise exc.InvalidRequestError(
                 "contains() doesn't apply to a scalar object endpoint; use =="
             )
@@ -1075,14 +1073,9 @@ class _AssociationList(_AssociationCollection):
         col.append(item)
 
     def count(self, value):
-        return sum(
-            [
-                1
-                for _ in util.itertools_filter(
-                    lambda v: v == value, iter(self)
-                )
-            ]
-        )
+        return sum(1 for _ in util.itertools_filter(
+                        lambda v: v == value, iter(self)
+                    ))
 
     def extend(self, values):
         for v in values:
@@ -1387,10 +1380,7 @@ class _AssociationSet(_AssociationCollection):
         return len(self.col)
 
     def __bool__(self):
-        if self.col:
-            return True
-        else:
-            return False
+        return bool(self.col)
 
     __nonzero__ = __bool__
 

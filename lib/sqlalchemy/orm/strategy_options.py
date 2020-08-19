@@ -183,11 +183,7 @@ class Load(Generative, LoaderOption):
                 self.path = path
                 return path
 
-            if existing_of_type:
-                ent = inspect(existing_of_type)
-            else:
-                ent = path.entity
-
+            ent = inspect(existing_of_type) if existing_of_type else path.entity
             try:
                 # use getattr on the class to work around
                 # synonyms, hybrids, etc.
@@ -409,15 +405,14 @@ class Load(Generative, LoaderOption):
         return cloned
 
     def _set_for_path(self, context, path, replace=True, merge_opts=False):
+        existing = path.get(context, "loader")
         if merge_opts or not replace:
-            existing = path.get(context, "loader")
             if existing:
                 if merge_opts:
                     existing.local_opts.update(self.local_opts)
             else:
                 path.set(context, "loader", self)
         else:
-            existing = path.get(context, "loader")
             path.set(context, "loader", self)
             if existing and existing.is_opts_only:
                 self.local_opts.update(existing.local_opts)
@@ -832,10 +827,7 @@ class _UnboundLoad(Load):
         return loader
 
     def _find_entity_prop_comparator(self, entities, prop, mapper, raiseerr):
-        if _is_aliased_class(mapper):
-            searchfor = mapper
-        else:
-            searchfor = _class_to_mapper(mapper)
+        searchfor = mapper if _is_aliased_class(mapper) else _class_to_mapper(mapper)
         for ent in entities:
             if orm_util._entity_corresponds_to(ent, searchfor):
                 return ent
@@ -861,21 +853,20 @@ class _UnboundLoad(Load):
 
     def _find_entity_basestring(self, entities, token, raiseerr):
         if token.endswith(":" + _WILDCARD_TOKEN):
-            if len(list(entities)) != 1:
-                if raiseerr:
-                    raise sa_exc.ArgumentError(
-                        "Can't apply wildcard ('*') or load_only() "
-                        "loader option to multiple entities %s. Specify "
-                        "loader options for each entity individually, such "
-                        "as %s."
-                        % (
-                            ", ".join(str(ent) for ent in entities),
-                            ", ".join(
-                                "Load(%s).some_option('*')" % ent
-                                for ent in entities
-                            ),
-                        )
+            if len(list(entities)) != 1 and raiseerr:
+                raise sa_exc.ArgumentError(
+                    "Can't apply wildcard ('*') or load_only() "
+                    "loader option to multiple entities %s. Specify "
+                    "loader options for each entity individually, such "
+                    "as %s."
+                    % (
+                        ", ".join(str(ent) for ent in entities),
+                        ", ".join(
+                            "Load(%s).some_option('*')" % ent
+                            for ent in entities
+                        ),
                     )
+                )
         elif token.endswith(_DEFAULT_TOKEN):
             raiseerr = False
 
@@ -1316,8 +1307,7 @@ def immediateload(loadopt, attr):
         :ref:`selectin_eager_loading`
 
     """
-    loader = loadopt.set_relationship_strategy(attr, {"lazy": "immediate"})
-    return loader
+    return loadopt.set_relationship_strategy(attr, {"lazy": "immediate"})
 
 
 @immediateload._add_unbound_fn

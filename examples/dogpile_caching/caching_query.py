@@ -136,12 +136,10 @@ class FromCache(UserDefinedOption):
     def _generate_cache_key(self, statement, parameters, orm_cache):
         statement_cache_key = statement._generate_cache_key()
 
-        key = statement_cache_key.to_offline_string(
+        # print("here's our key...%s" % key)
+        return statement_cache_key.to_offline_string(
             orm_cache._statement_cache, statement, parameters
         ) + repr(self.cache_key)
-
-        # print("here's our key...%s" % key)
-        return key
 
 
 class RelationshipCache(FromCache):
@@ -188,10 +186,9 @@ class RelationshipCache(FromCache):
 
             for cls in mapper.class_.__mro__:
                 if (cls, key) in self._relationship_options:
-                    relationship_option = self._relationship_options[
+                    return self._relationship_options[
                         (cls, key)
                     ]
-                    return relationship_option
 
     def and_(self, option):
         """Chain another RelationshipCache option to this one.

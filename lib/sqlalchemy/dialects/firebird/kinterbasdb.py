@@ -177,10 +177,11 @@ class FBDialect_kinterbasdb(FBDialect):
                 "Could not determine version from string '%s'" % version
             )
 
-        if m.group(5) != None:
-            return tuple([int(x) for x in m.group(6, 7, 4)] + ["firebird"])
-        else:
+        if m.group(5) is None:
             return tuple([int(x) for x in m.group(1, 2, 3)] + ["interbase"])
+
+        else:
+            return tuple([int(x) for x in m.group(6, 7, 4)] + ["firebird"])
 
     def is_disconnect(self, e, connection, cursor):
         if isinstance(

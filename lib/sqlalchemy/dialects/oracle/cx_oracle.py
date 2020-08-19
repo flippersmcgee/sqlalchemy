@@ -413,45 +413,25 @@ class _OracleNumeric(sqltypes.Numeric):
         def handler(cursor, name, default_type, size, precision, scale):
             outconverter = None
 
-            if precision:
-                if self.asdecimal:
-                    if default_type == cx_Oracle.NATIVE_FLOAT:
-                        # receiving float and doing Decimal after the fact
-                        # allows for float("inf") to be handled
-                        type_ = default_type
-                        outconverter = decimal.Decimal
-                    elif is_cx_oracle_6:
-                        type_ = decimal.Decimal
-                    else:
-                        type_ = cx_Oracle.STRING
-                        outconverter = dialect._to_decimal
+            if self.asdecimal:
+                if default_type == cx_Oracle.NATIVE_FLOAT:
+                    # receiving float and doing Decimal after the fact
+                    # allows for float("inf") to be handled
+                    type_ = default_type
+                    outconverter = decimal.Decimal
+                elif is_cx_oracle_6:
+                    type_ = decimal.Decimal
                 else:
-                    if self.is_number and scale == 0:
-                        # integer. cx_Oracle is observed to handle the widest
-                        # variety of ints when no directives are passed,
-                        # from 5.2 to 7.0.  See [ticket:4457]
-                        return None
-                    else:
-                        type_ = cx_Oracle.NATIVE_FLOAT
-
+                    type_ = cx_Oracle.STRING
+                    outconverter = dialect._to_decimal
             else:
-                if self.asdecimal:
-                    if default_type == cx_Oracle.NATIVE_FLOAT:
-                        type_ = default_type
-                        outconverter = decimal.Decimal
-                    elif is_cx_oracle_6:
-                        type_ = decimal.Decimal
-                    else:
-                        type_ = cx_Oracle.STRING
-                        outconverter = dialect._to_decimal
+                if self.is_number and scale == 0:
+                    # integer. cx_Oracle is observed to handle the widest
+                    # variety of ints when no directives are passed,
+                    # from 5.2 to 7.0.  See [ticket:4457]
+                    return None
                 else:
-                    if self.is_number and scale == 0:
-                        # integer. cx_Oracle is observed to handle the widest
-                        # variety of ints when no directives are passed,
-                        # from 5.2 to 7.0.  See [ticket:4457]
-                        return None
-                    else:
-                        type_ = cx_Oracle.NATIVE_FLOAT
+                    type_ = cx_Oracle.NATIVE_FLOAT
 
             return cursor.var(
                 type_,
@@ -545,8 +525,7 @@ class _OracleEnum(sqltypes.Enum):
         enum_proc = sqltypes.Enum.bind_processor(self, dialect)
 
         def process(value):
-            raw_str = enum_proc(value)
-            return raw_str
+            return enum_proc(value)
 
         return process
 
@@ -618,28 +597,29 @@ class OracleExecutionContext_cx_oracle(OracleExecutionContext):
     def _generate_out_parameter_vars(self):
         # check for has_out_parameters or RETURNING, create cx_Oracle.var
         # objects if so
-        if self.compiled.returning or self.compiled.has_out_parameters:
-            quoted_bind_names = self.compiled._quoted_bind_names
-            for bindparam in self.compiled.binds.values():
-                if bindparam.isoutparam:
-                    name = self.compiled.bind_names[bindparam]
-                    type_impl = bindparam.type.dialect_impl(self.dialect)
-                    if hasattr(type_impl, "_cx_oracle_var"):
-                        self.out_parameters[name] = type_impl._cx_oracle_var(
-                            self.dialect, self.cursor
+        if not self.compiled.returning and not self.compiled.has_out_parameters:
+            return
+        quoted_bind_names = self.compiled._quoted_bind_names
+        for bindparam in self.compiled.binds.values():
+            if bindparam.isoutparam:
+                name = self.compiled.bind_names[bindparam]
+                type_impl = bindparam.type.dialect_impl(self.dialect)
+                if hasattr(type_impl, "_cx_oracle_var"):
+                    self.out_parameters[name] = type_impl._cx_oracle_var(
+                        self.dialect, self.cursor
+                    )
+                else:
+                    dbtype = type_impl.get_dbapi_type(self.dialect.dbapi)
+                    if dbtype is None:
+                        raise exc.InvalidRequestError(
+                            "Cannot create out parameter for parameter "
+                            "%r - its type %r is not supported by"
+                            " cx_oracle" % (bindparam.key, bindparam.type)
                         )
-                    else:
-                        dbtype = type_impl.get_dbapi_type(self.dialect.dbapi)
-                        if dbtype is None:
-                            raise exc.InvalidRequestError(
-                                "Cannot create out parameter for parameter "
-                                "%r - its type %r is not supported by"
-                                " cx_oracle" % (bindparam.key, bindparam.type)
-                            )
-                        self.out_parameters[name] = self.cursor.var(dbtype)
-                    self.parameters[0][
-                        quoted_bind_names.get(name, name)
-                    ] = self.out_parameters[name]
+                    self.out_parameters[name] = self.cursor.var(dbtype)
+                self.parameters[0][
+                    quoted_bind_names.get(name, name)
+                ] = self.out_parameters[name]
 
     def _generate_cursor_outputtype_handler(self):
         output_handlers = {}

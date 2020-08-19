@@ -119,7 +119,7 @@ session.commit()
 c = session.query(Company).get(1)
 for e in c.employees:
     print(e, inspect(e).key, e.company)
-assert set([e.name for e in c.employees]) == set(
+assert {e.name for e in c.employees} == set(
     ["pointy haired boss", "dilbert", "joesmith", "wally", "jsmith"]
 )
 print("\n")

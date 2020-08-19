@@ -486,7 +486,7 @@ class SessionTransaction(object):
                         % self._rollback_exception,
                         code="7s2a",
                     )
-                elif not deactive_ok:
+                else:
                     raise sa_exc.InvalidRequestError(
                         "This session is in 'inactive' state, due to the "
                         "SQL transaction being rolled back; no further "
@@ -1197,9 +1197,8 @@ class Session(_SessionClassMethods):
                 "subtransactions are not implemented in future "
                 "Session objects."
             )
-        if self._autobegin():
-            if not subtransactions and not nested:
-                return self._transaction
+        if self._autobegin() and not subtransactions and not nested:
+            return self._transaction
 
         if self._transaction is not None:
             if subtransactions or _subtrans or nested:
@@ -1262,9 +1261,7 @@ class Session(_SessionClassMethods):
             :ref:`unitofwork_transaction`
 
         """
-        if self._transaction is None:
-            pass
-        else:
+        if self._transaction is not None:
             self._transaction.rollback(_to_root=self.future)
 
     def commit(self):
@@ -1297,9 +1294,8 @@ class Session(_SessionClassMethods):
             :ref:`unitofwork_transaction`
 
         """
-        if self._transaction is None:
-            if not self._autobegin():
-                raise sa_exc.InvalidRequestError("No transaction is begun.")
+        if self._transaction is None and not self._autobegin():
+            raise sa_exc.InvalidRequestError("No transaction is begun.")
 
         self._transaction.commit(_to_root=self.future)
 
@@ -1314,9 +1310,8 @@ class Session(_SessionClassMethods):
         :exc:`~sqlalchemy.exc.InvalidRequestError` is raised.
 
         """
-        if self._transaction is None:
-            if not self._autobegin():
-                raise sa_exc.InvalidRequestError("No transaction is begun.")
+        if self._transaction is None and not self._autobegin():
+            raise sa_exc.InvalidRequestError("No transaction is begun.")
 
         self._transaction.prepare()
 
@@ -1940,13 +1935,11 @@ class Session(_SessionClassMethods):
         if mapper and clause is None:
             clause = mapper.persist_selectable
 
-        if clause is not None:
-            if clause.bind:
-                return clause.bind
+        if clause is not None and clause.bind:
+            return clause.bind
 
-        if mapper:
-            if mapper.persist_selectable.bind:
-                return mapper.persist_selectable.bind
+        if mapper and mapper.persist_selectable.bind:
+            return mapper.persist_selectable.bind
 
         context = []
         if mapper is not None:

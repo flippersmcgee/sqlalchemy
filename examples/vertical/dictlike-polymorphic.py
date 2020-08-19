@@ -103,10 +103,7 @@ def on_new_class(mapper, cls_):
     """Look for Column objects with type info in them, and work up
     a lookup table."""
 
-    info_dict = {}
-    info_dict[type(None)] = (None, "none")
-    info_dict["none"] = (None, "none")
-
+    info_dict = {type(None): (None, "none"), "none": (None, "none")}
     for k in mapper.c.keys():
         col = mapper.c[k]
         if "type" in col.info:

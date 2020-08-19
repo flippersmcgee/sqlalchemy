@@ -66,8 +66,7 @@ def track_cascade_events(descriptor, prop):
             )
 
         if (
-            item is not None
-            and item is not attributes.NEVER_SET
+            item is not attributes.NEVER_SET
             and item is not attributes.PASSIVE_NO_RESULT
             and prop._cascade.delete_orphan
         ):
@@ -355,10 +354,11 @@ class UOWTransaction(object):
         # have been processed.   a presort_action might
         # add new states to the uow.
         while True:
-            ret = False
-            for action in list(self.presort_actions.values()):
-                if action.execute(self):
-                    ret = True
+            ret = any(
+                action.execute(self)
+                for action in list(self.presort_actions.values())
+            )
+
             if not ret:
                 break
 
@@ -370,9 +370,7 @@ class UOWTransaction(object):
         if cycles:
             # if yes, break the per-mapper actions into
             # per-state actions
-            convert = dict(
-                (rec, set(rec.per_state_flush_actions(self))) for rec in cycles
-            )
+            convert = {rec: set(rec.per_state_flush_actions(self)) for rec in cycles}
 
             # rewrite the existing dependencies to point to
             # the per-state actions for those per-mapper actions
@@ -394,9 +392,9 @@ class UOWTransaction(object):
                     for dep in convert[edge[1]]:
                         self.dependencies.add((edge[0], dep))
 
-        return set(
-            [a for a in self.postsort_actions.values() if not a.disabled]
-        ).difference(cycles)
+        return {
+            a for a in self.postsort_actions.values() if not a.disabled
+        }.difference(cycles)
 
     def execute(self):
         postsort_actions = self._generate_actions()
@@ -432,9 +430,7 @@ class UOWTransaction(object):
             return
 
         states = set(self.states)
-        isdel = set(
-            s for (s, (isdelete, listonly)) in self.states.items() if isdelete
-        )
+        isdel = {s for (s, (isdelete, listonly)) in self.states.items() if isdelete}
         other = states.difference(isdel)
         if isdel:
             self.session._remove_newly_deleted(isdel)

@@ -600,9 +600,8 @@ class DefaultDialect(interfaces.Dialect):
     def normalize_name(self, name):
         if name is None:
             return None
-        if util.py2k:
-            if isinstance(name, str):
-                name = name.decode(self.encoding)
+        if util.py2k and isinstance(name, str):
+            name = name.decode(self.encoding)
 
         name_lower = name.lower()
         name_upper = name.upper()
@@ -1289,17 +1288,16 @@ class DefaultExecutionContext(interfaces.ExecutionContext):
         result.out_parameters = out_parameters
 
     def _setup_dml_or_text_result(self):
-        if self.isinsert:
+        if self.isinsert and not self._is_implicit_returning:
             if (
-                not self._is_implicit_returning
-                and not self.compiled.inline
+                not self.compiled.inline
                 and self.dialect.postfetch_lastrowid
                 and not self.executemany
             ):
 
                 self._setup_ins_pk_from_lastrowid()
 
-            elif not self._is_implicit_returning:
+            else:
                 self._setup_ins_pk_from_empty()
 
         strategy = self.cursor_fetch_strategy
@@ -1524,15 +1522,9 @@ class DefaultExecutionContext(interfaces.ExecutionContext):
                 ]
             )
         else:
-            parameters = dict(
-                (
-                    key,
-                    processors[key](compiled_params[key])
+            parameters = {key: processors[key](compiled_params[key])
                     if key in processors
-                    else compiled_params[key],
-                )
-                for key in compiled_params
-            )
+                    else compiled_params[key] for key in compiled_params}
         return self._execute_scalar(
             util.text_type(compiled), type_, parameters=parameters
         )
@@ -1657,17 +1649,11 @@ class DefaultExecutionContext(interfaces.ExecutionContext):
         for param in self.compiled_parameters:
             self.current_parameters = param
             for c in insert_prefetch:
-                if c in scalar_defaults:
-                    val = scalar_defaults[c]
-                else:
-                    val = self.get_insert_default(c)
+                val = scalar_defaults.get(c, self.get_insert_default(c))
                 if val is not None:
                     param[key_getter(c)] = val
             for c in update_prefetch:
-                if c in scalar_defaults:
-                    val = scalar_defaults[c]
-                else:
-                    val = self.get_update_default(c)
+                val = scalar_defaults.get(c, self.get_update_default(c))
                 if val is not None:
                     param[key_getter(c)] = val
 

@@ -18,10 +18,7 @@ from sqlalchemy.orm.relationships import RelationshipProperty
 
 
 def col_references_table(col, table):
-    for fk in col.foreign_keys:
-        if fk.references(table):
-            return True
-    return False
+    return any(fk.references(table) for fk in col.foreign_keys)
 
 
 def _is_versioning_col(col):
@@ -264,7 +261,7 @@ def create_version(obj, session, deleted=False):
                     if p.foreign_keys:
                         obj_changed = True
                         break
-                if obj_changed is True:
+                if obj_changed:
                     break
 
     if not obj_changed and not deleted:

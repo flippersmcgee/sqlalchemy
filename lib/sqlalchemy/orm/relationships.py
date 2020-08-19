@@ -1036,11 +1036,7 @@ class RelationshipProperty(StrategizedProperty):
         self.strategy_key = (("lazy", self.lazy),)
 
         self._reverse_property = set()
-        if overlaps:
-            self._overlaps = set(re.split(r"\s*,\s*", overlaps))
-        else:
-            self._overlaps = ()
-
+        self._overlaps = set(re.split(r"\s*,\s*", overlaps)) if overlaps else ()
         if cascade is not False:
             self.cascade = cascade
         elif self.viewonly:
@@ -1170,11 +1166,7 @@ class RelationshipProperty(StrategizedProperty):
 
         def __clause_element__(self):
             adapt_from = self._source_selectable()
-            if self._of_type:
-                of_type_entity = inspect(self._of_type)
-            else:
-                of_type_entity = None
-
+            of_type_entity = inspect(self._of_type) if self._of_type else None
             (
                 pj,
                 sj,
@@ -1291,19 +1283,12 @@ class RelationshipProperty(StrategizedProperty):
 
                 single_crit = target_mapper._single_table_criterion
                 if single_crit is not None:
-                    if criterion is not None:
-                        criterion = single_crit & criterion
-                    else:
-                        criterion = single_crit
+                    criterion = single_crit & criterion if criterion is not None else single_crit
             else:
                 is_aliased_class = False
                 to_selectable = None
 
-            if self.adapter:
-                source_selectable = self._source_selectable()
-            else:
-                source_selectable = None
-
+            source_selectable = self._source_selectable() if self.adapter else None
             (
                 pj,
                 sj,
@@ -1318,11 +1303,7 @@ class RelationshipProperty(StrategizedProperty):
 
             for k in kwargs:
                 crit = getattr(self.property.mapper.class_, k) == kwargs[k]
-                if criterion is None:
-                    criterion = crit
-                else:
-                    criterion = criterion & crit
-
+                criterion = crit if criterion is None else criterion & crit
             # annotate the *local* side of the join condition, in the case
             # of pj + sj this is the full primaryjoin, in the case of just
             # pj its the local side of the primaryjoin.
@@ -2440,9 +2421,12 @@ class RelationshipProperty(StrategizedProperty):
         if alias_secondary and self.secondary is not None:
             aliased = True
 
-        if source_selectable is None:
-            if source_polymorphic and self.parent.with_polymorphic:
-                source_selectable = self.parent._with_polymorphic_selectable
+        if (
+            source_selectable is None
+            and source_polymorphic
+            and self.parent.with_polymorphic
+        ):
+            source_selectable = self.parent._with_polymorphic_selectable
 
         if of_type_entity:
             dest_mapper = of_type_entity.mapper
@@ -3156,7 +3140,6 @@ class JoinCondition(object):
                 "'==', the relationship can be marked as viewonly=True."
             )
 
-            raise sa_exc.ArgumentError(err)
         else:
             err = (
                 "Could not locate any relevant foreign key columns "
@@ -3173,7 +3156,8 @@ class JoinCondition(object):
                 "annotated in the join condition with the foreign() "
                 "annotation."
             )
-            raise sa_exc.ArgumentError(err)
+
+        raise sa_exc.ArgumentError(err)
 
     def _determine_direction(self):
         """Determine if this relationship is one to many, many to one,
@@ -3412,13 +3396,8 @@ class JoinCondition(object):
 
     def _gather_columns_with_annotation(self, clause, *annotation):
         annotation = set(annotation)
-        return set(
-            [
-                col
-                for col in visitors.iterate(clause, {})
-                if annotation.issubset(col._annotations)
-            ]
-        )
+        return {col for col in visitors.iterate(clause, {})
+                    if annotation.issubset(col._annotations)}
 
     def join_targets(
         self, source_selectable, dest_selectable, aliased, single_crit=None

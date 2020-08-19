@@ -116,10 +116,7 @@ def _bulk_insert(
         identity_cls = mapper._identity_class
         identity_props = [p.key for p in mapper._identity_key_props]
         for state, dict_ in states:
-            state.key = (
-                identity_cls,
-                tuple([dict_[key] for key in identity_props]),
-            )
+            state.key = (identity_cls, tuple(dict_[key] for key in identity_props))
 
 
 def _bulk_update(
@@ -134,11 +131,8 @@ def _bulk_update(
         search_keys = {mapper._version_id_prop.key}.union(search_keys)
 
     def _changed_dict(mapper, state):
-        return dict(
-            (k, v)
-            for k, v in state.dict.items()
-            if k in state.committed_state or k in search_keys
-        )
+        return {k: v for k, v in state.dict.items()
+                if k in state.committed_state or k in search_keys}
 
     if isstates:
         if update_changed_only:
@@ -607,12 +601,13 @@ def _collect_update_commands(
         if bulk:
             # keys here are mapped attribute keys, so
             # look at mapper attribute keys for pk
-            params = dict(
-                (propkey_to_col[propkey].key, state_dict[propkey])
+            params = {
+                propkey_to_col[propkey].key: state_dict[propkey]
                 for propkey in set(propkey_to_col)
                 .intersection(state_dict)
                 .difference(mapper._pk_attr_keys_by_table[table])
-            )
+            }
+
             has_all_defaults = True
         else:
             params = {}
@@ -652,7 +647,7 @@ def _collect_update_commands(
             and mapper.version_id_col in mapper._cols_by_table[table]
         ):
 
-            if not bulk and not (params or value_params):
+            if not bulk and not params and not value_params:
                 # HACK: check for history in other tables, in case the
                 # history is only in a different table than the one
                 # where the version_id_col is.  This logic was lost
@@ -691,12 +686,13 @@ def _collect_update_commands(
         if bulk:
             # keys here are mapped attribute keys, so
             # look at mapper attribute keys for pk
-            pk_params = dict(
-                (propkey_to_col[propkey]._label, state_dict.get(propkey))
+            pk_params = {
+                propkey_to_col[propkey]._label: state_dict.get(propkey)
                 for propkey in set(propkey_to_col).intersection(
                     mapper._pk_attr_keys_by_table[table]
                 )
-            )
+            }
+
         else:
             pk_params = {}
             for col in pks:
@@ -887,8 +883,7 @@ def _emit_update_statements(
                 )
             )
 
-        stmt = table.update().where(clauses)
-        return stmt
+        return table.update().where(clauses)
 
     cached_stmt = base_mapper._memo(("update", table), update_stmt)
 
@@ -1502,9 +1497,8 @@ def _finalize_insert_update_commands(base_mapper, uowtransaction, states):
         if (
             mapper.version_id_col is not None
             and mapper.version_id_generator is False
-        ):
-            if mapper._version_id_prop.key in state.unloaded:
-                toload_now.extend([mapper._version_id_prop.key])
+        ) and mapper._version_id_prop.key in state.unloaded:
+            toload_now.extend([mapper._version_id_prop.key])
 
         if toload_now:
             state.key = base_mapper._identity_key_from_state(state)
@@ -1526,11 +1520,10 @@ def _finalize_insert_update_commands(base_mapper, uowtransaction, states):
         if (
             mapper.version_id_generator is False
             and mapper.version_id_col is not None
-        ):
-            if state_dict[mapper._version_id_prop.key] is None:
-                raise orm_exc.FlushError(
-                    "Instance does not contain a non-NULL version value"
-                )
+        ) and state_dict[mapper._version_id_prop.key] is None:
+            raise orm_exc.FlushError(
+                "Instance does not contain a non-NULL version value"
+            )
 
 
 def _postfetch_post_update(
@@ -1713,7 +1706,7 @@ def _cached_connection_dict(base_mapper):
 
 def _sort_states(mapper, states):
     pending = set(states)
-    persistent = set(s for s in pending if s.key is not None)
+    persistent = {s for s in pending if s.key is not None}
     pending.difference_update(persistent)
 
     try:

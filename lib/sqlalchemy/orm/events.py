@@ -218,10 +218,7 @@ class InstanceEvents(event.Events):
         if not raw or restore_load_context:
 
             def wrap(state, *arg, **kw):
-                if not raw:
-                    target = state.obj()
-                else:
-                    target = state
+                target = state.obj() if not raw else state
                 if restore_load_context:
                     runid = state.runid
                 try:
@@ -2198,10 +2195,7 @@ class AttributeEvents(event.Events):
                 if not raw:
                     target = target.obj()
                 if not retval:
-                    if arg:
-                        value = arg[0]
-                    else:
-                        value = None
+                    value = arg[0] if arg else None
                     fn(target, *arg)
                     return value
                 else:

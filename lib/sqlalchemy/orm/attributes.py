@@ -596,11 +596,7 @@ class AttributeImpl(object):
         self.trackparent = trackparent
         self.parent_token = parent_token or self
         self.send_modified_events = send_modified_events
-        if compare_function is None:
-            self.is_equal = operator.eq
-        else:
-            self.is_equal = compare_function
-
+        self.is_equal = operator.eq if compare_function is None else compare_function
         if accepts_scalar_loader is not None:
             self.accepts_scalar_loader = accepts_scalar_loader
         else:
@@ -1076,13 +1072,12 @@ class ScalarObjectAttributeImpl(ScalarAttributeImpl):
         state._modified_event(dict_, self, value)
 
     def fire_replace_event(self, state, dict_, value, previous, initiator):
-        if self.trackparent:
-            if previous is not value and previous not in (
-                None,
-                PASSIVE_NO_RESULT,
-                NO_VALUE,
-            ):
-                self.sethasparent(instance_state(previous), state, False)
+        if (
+            self.trackparent
+            and previous is not value
+            and previous not in (None, PASSIVE_NO_RESULT, NO_VALUE,)
+        ):
+            self.sethasparent(instance_state(previous), state, False)
 
         for fn in self.dispatch.set:
             value = fn(
@@ -1091,9 +1086,8 @@ class ScalarObjectAttributeImpl(ScalarAttributeImpl):
 
         state._modified_event(dict_, self, previous)
 
-        if self.trackparent:
-            if value is not None:
-                self.sethasparent(instance_state(value), state, True)
+        if self.trackparent and value is not None:
+            self.sethasparent(instance_state(value), state, True)
 
         return value
 
@@ -1578,49 +1572,46 @@ def backref_listeners(attribute, key, uselist):
         return child
 
     def emit_backref_from_collection_remove_event(state, child, initiator):
-        if (
-            child is not None
-            and child is not PASSIVE_NO_RESULT
-            and child is not NO_VALUE
-        ):
-            child_state, child_dict = (
-                instance_state(child),
-                instance_dict(child),
-            )
-            child_impl = child_state.manager[key].impl
+        if child is None or child is PASSIVE_NO_RESULT or child is NO_VALUE:
+            return
+        child_state, child_dict = (
+            instance_state(child),
+            instance_dict(child),
+        )
+        child_impl = child_state.manager[key].impl
 
             # tokens to test for a recursive loop.
-            if not child_impl.collection and not child_impl.dynamic:
-                check_remove_token = child_impl._remove_token
-                check_replace_token = child_impl._replace_token
-                check_for_dupes_on_remove = uselist and not parent_impl.dynamic
-            else:
-                check_remove_token = child_impl._remove_token
-                check_replace_token = (
-                    child_impl._bulk_replace_token
-                    if child_impl.collection
-                    else None
-                )
-                check_for_dupes_on_remove = False
+        if not child_impl.collection and not child_impl.dynamic:
+            check_replace_token = child_impl._replace_token
+            check_for_dupes_on_remove = uselist and not parent_impl.dynamic
+        else:
+            check_replace_token = (
+                child_impl._bulk_replace_token
+                if child_impl.collection
+                else None
+            )
+            check_for_dupes_on_remove = False
 
-            if (
-                initiator is not check_remove_token
-                and initiator is not check_replace_token
-            ):
-
-                if not check_for_dupes_on_remove or not util.has_dupes(
-                    # when this event is called, the item is usually
-                    # present in the list, except for a pop() operation.
-                    state.dict[parent_impl.key],
-                    child,
-                ):
-                    child_impl.pop(
-                        child_state,
-                        child_dict,
-                        state.obj(),
-                        initiator,
-                        passive=PASSIVE_NO_FETCH,
-                    )
+        check_remove_token = child_impl._remove_token
+        if (
+            initiator is not check_remove_token
+            and initiator is not check_replace_token
+        ) and (
+            not check_for_dupes_on_remove
+            or not util.has_dupes(
+                # when this event is called, the item is usually
+                # present in the list, except for a pop() operation.
+                state.dict[parent_impl.key],
+                child,
+            )
+        ):
+            child_impl.pop(
+                child_state,
+                child_dict,
+                state.obj(),
+                initiator,
+                passive=PASSIVE_NO_FETCH,
+            )
 
     if uselist:
         event.listen(
@@ -1766,12 +1757,13 @@ class History(util.namedtuple("History", ["added", "unchanged", "deleted"])):
     def from_object_attribute(cls, attribute, state, current):
         original = state.committed_state.get(attribute.key, _NO_HISTORY)
 
-        if original is _NO_HISTORY:
-            if current is NO_VALUE:
-                return cls((), (), ())
-            else:
-                return cls((), [current], ())
-        elif current is original and current is not NO_VALUE:
+        if original is _NO_HISTORY and current is NO_VALUE:
+            return cls((), (), ())
+        elif (
+            original is _NO_HISTORY
+            or current is original
+            and current is not NO_VALUE
+        ):
             return cls((), [current], ())
         else:
             # current convention on related objects is to not

@@ -295,8 +295,7 @@ class PropRegistry(PathRegistry):
         if not insp.is_aliased_class or insp._use_mapper_path:
             parent = natural_parent = parent.parent[prop.parent]
         elif (
-            insp.is_aliased_class
-            and insp.with_polymorphic_mappers
+            insp.with_polymorphic_mappers
             and prop.parent in insp.with_polymorphic_mappers
         ):
             subclass_entity = parent[-1]._entity_for_mapper(prop.parent)
@@ -339,7 +338,6 @@ class PropRegistry(PathRegistry):
                 natural_parent = parent
         elif (
             natural_parent.parent
-            and insp.is_aliased_class
             and prop.parent  # this should always be the case here
             is not insp.mapper
             and insp.mapper.isa(prop.parent)

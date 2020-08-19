@@ -1768,30 +1768,26 @@ class PGCompiler(compiler.SQLCompiler):
     def get_select_precolumns(self, select, **kw):
         # Do not call super().get_select_precolumns because
         # it will warn/raise when distinct on is present
-        if select._distinct or select._distinct_on:
-            if select._distinct_on:
-                return (
-                    "DISTINCT ON ("
-                    + ", ".join(
-                        [
-                            self.process(col, **kw)
-                            for col in select._distinct_on
-                        ]
-                    )
-                    + ") "
+        if select._distinct_on:
+            return (
+                "DISTINCT ON ("
+                + ", ".join(
+                    [
+                        self.process(col, **kw)
+                        for col in select._distinct_on
+                    ]
                 )
-            else:
-                return "DISTINCT "
+                + ") "
+            )
+        elif select._distinct:
+            return "DISTINCT "
         else:
             return ""
 
     def for_update_clause(self, select, **kw):
 
         if select._for_update_arg.read:
-            if select._for_update_arg.key_share:
-                tmp = " FOR KEY SHARE"
-            else:
-                tmp = " FOR SHARE"
+            tmp = " FOR KEY SHARE" if select._for_update_arg.key_share else " FOR SHARE"
         elif select._for_update_arg.key_share:
             tmp = " FOR NO KEY UPDATE"
         else:
@@ -2650,9 +2646,7 @@ class PGDialect(default.DefaultDialect):
                 connection.exec_driver_sql("ROLLBACK")
             connection.exec_driver_sql("ROLLBACK PREPARED '%s'" % xid)
             connection.exec_driver_sql("BEGIN")
-            self.do_rollback(connection.connection)
-        else:
-            self.do_rollback(connection.connection)
+        self.do_rollback(connection.connection)
 
     def do_commit_twophase(
         self, connection, xid, is_prepared=True, recover=False
@@ -2761,7 +2755,6 @@ class PGDialect(default.DefaultDialect):
                 AND n.nspname = :nspname
                 )
                 """
-            query = sql.text(query)
         else:
             query = """
             SELECT EXISTS (
@@ -2770,7 +2763,7 @@ class PGDialect(default.DefaultDialect):
                 AND pg_type_is_visible(t.oid)
                 )
                 """
-            query = sql.text(query)
+        query = sql.text(query)
         query = query.bindparams(
             sql.bindparam(
                 "typname", util.text_type(type_name), type_=sqltypes.Unicode
@@ -2796,7 +2789,7 @@ class PGDialect(default.DefaultDialect):
             raise AssertionError(
                 "Could not determine version from string '%s'" % v
             )
-        return tuple([int(x) for x in m.group(1, 2, 3) if x is not None])
+        return tuple(int(x) for x in m.group(1, 2, 3) if x is not None)
 
     @reflection.cache
     def get_table_oid(self, connection, table_name, schema=None, **kw):
@@ -2922,7 +2915,7 @@ class PGDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_view_definition(self, connection, view_name, schema=None, **kw):
-        view_def = connection.scalar(
+        return connection.scalar(
             sql.text(
                 "SELECT pg_get_viewdef(c.oid) view_def FROM pg_class c "
                 "JOIN pg_namespace n ON n.oid = c.relnamespace "
@@ -2932,7 +2925,6 @@ class PGDialect(default.DefaultDialect):
             schema=schema if schema is not None else self.default_schema_name,
             view_name=view_name,
         )
-        return view_def
 
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
@@ -3353,8 +3345,9 @@ class PGDialect(default.DefaultDialect):
             # for now.
             # regards, tom lane"
             return "(%s)" % " OR ".join(
-                "%s[%d] = %s" % (compare_to, ind, col) for ind in range(0, 10)
+                "%s[%d] = %s" % (compare_to, ind, col) for ind in range(10)
             )
+
         else:
             return "%s = ANY(%s)" % (col, compare_to)
 

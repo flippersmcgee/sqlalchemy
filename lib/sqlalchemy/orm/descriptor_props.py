@@ -190,9 +190,7 @@ class CompositeProperty(DescriptorProperty):
                 # col attributes have non-None.  This would be better
                 # if the composite were created unconditionally,
                 # but that would be a behavioral change.
-                if self.key not in dict_ and (
-                    state.key is not None or not _none_set.issuperset(values)
-                ):
+                if state.key is not None or not _none_set.issuperset(values):
                     dict_[self.key] = self.composite_class(*values)
                     state.manager.dispatch.refresh(state, None, [self.key])
 

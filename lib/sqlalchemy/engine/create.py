@@ -686,11 +686,8 @@ def engine_from_config(configuration, prefix="sqlalchemy.", **kwargs):
 
     """
 
-    options = dict(
-        (key[len(prefix) :], configuration[key])
-        for key in configuration
-        if key.startswith(prefix)
-    )
+    options = {key[len(prefix) :]: configuration[key] for key in configuration
+            if key.startswith(prefix)}
     options["_coerce_config"] = True
     options.update(kwargs)
     url = options.pop("url")

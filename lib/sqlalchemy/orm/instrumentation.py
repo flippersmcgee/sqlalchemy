@@ -126,23 +126,16 @@ class ClassManager(HasMemoized, dict):
 
     @HasMemoized.memoized_attribute
     def _collection_impl_keys(self):
-        return frozenset(
-            [attr.key for attr in self.values() if attr.impl.collection]
-        )
+        return frozenset(attr.key for attr in self.values() if attr.impl.collection)
 
     @HasMemoized.memoized_attribute
     def _scalar_loader_impls(self):
-        return frozenset(
-            [
-                attr.impl
-                for attr in self.values()
-                if attr.impl.accepts_scalar_loader
-            ]
-        )
+        return frozenset(attr.impl for attr in self.values()
+                    if attr.impl.accepts_scalar_loader)
 
     @HasMemoized.memoized_attribute
     def _loader_impls(self):
-        return frozenset([attr.impl for attr in self.values()])
+        return frozenset(attr.impl for attr in self.values())
 
     @util.memoized_property
     def mapper(self):
@@ -272,8 +265,7 @@ class ClassManager(HasMemoized, dict):
             if mgr is not None and mgr is not self:
                 yield mgr
                 if recursive:
-                    for m in mgr.subclass_managers(True):
-                        yield m
+                    yield from mgr.subclass_managers(True)
 
     def post_configure_attribute(self, key):
         _instrumentation_factory.dispatch.attribute_instrument(
